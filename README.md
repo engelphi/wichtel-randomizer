@@ -1,5 +1,5 @@
 # wichtel-randomizer
-![Build](https://github.com/engelphi/wichtel-randomizer/actions/workflows/build.yml/badge.svg)
+![Build](https://github.com/engelphi/wichtel-randomizer/actions/workflows/build.yaml/badge.svg)
 
 Very simple randomizer for Schrottwichteln
 
