@@ -1,3 +1,4 @@
+use clap::Parser;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use serde::Deserialize;
@@ -8,20 +9,75 @@ use std::io::BufReader;
 use std::path::Path;
 use std::result::Result;
 
+/// Commandline arguments
+#[derive(Parser, Debug)]
+#[clap(author, version, about, long_about = None)]
+pub struct Args {
+    /// The input file containing the names of the persons to assign as wichtels
+    #[clap(short, long)]
+    input_file: String,
+
+    /// The optional output file if not set result will be printed to stdout
+    #[clap(short, long)]
+    output_file: Option<String>,
+}
+
+/// model for reading the input json into
 #[derive(Debug, Deserialize)]
 struct Persons {
     persons: Vec<String>,
 }
 
-/**
- * Load persons from json file given by path
- */
-fn read_users_from_file<P: AsRef<Path>>(path: P) -> Result<Persons, Box<dyn Error>> {
-    let file = File::open(path)?;
-    let reader = BufReader::new(file);
-    let persons = serde_json::from_reader(reader)?;
+/// The cli application
+pub struct App {
+    args: Args,
+}
 
-    return Ok(persons);
+impl App {
+    /// Construct the app with the cli arguments
+    pub fn new(args: Args) -> Self {
+        return Self { args };
+    }
+
+    // Load persons from json file given by path
+    fn read_users_from_file<P: AsRef<Path>>(&self, path: P) -> Result<Persons, Box<dyn Error>> {
+        let persons = serde_json::from_reader(BufReader::new(File::open(path)?))?;
+        return Ok(persons);
+    }
+
+    // Writes results to given file
+    fn write_results<P: AsRef<Path>>(
+        &self,
+        path: P,
+        map: &HashMap<String, String>,
+    ) -> Result<(), Box<dyn Error>> {
+        serde_json::to_writer_pretty(&File::create(path)?, &map)?;
+        return Ok(());
+    }
+
+    // Writes result to stdout
+    fn print_results(&self, map: &HashMap<String, String>) -> Result<(), Box<dyn Error>> {
+        println!(
+            "Result: {}",
+            serde_json::to_string_pretty(&map).expect("Failed to serialize response")
+        );
+        return Ok(());
+    }
+
+    /// Entrypoint for the application logic
+    /// Loads the input data from the file given via cli, calcuates the wichtels and writes
+    /// the result either to stdout or to the optional file give via cli
+    pub fn randomize(&self) -> Result<(), Box<dyn Error>> {
+        let path = Path::new(&self.args.input_file);
+        let persons = self.read_users_from_file(path).expect("no persons in file");
+        let map: HashMap<String, String> =
+            calculate_wichtels(&persons).expect("Unable to calculate wichtels");
+
+        return match &self.args.output_file {
+            Some(f) => self.write_results(Path::new(&f), &map),
+            None => self.print_results(&map),
+        };
+    }
 }
 
 /**
@@ -39,7 +95,11 @@ fn calculate_wichtels(persons: &Persons) -> Result<HashMap<String, String>, Box<
             .filter(|name| **name != *person)
             .collect::<Vec<&String>>();
 
-        let choice = available_choices.choose(&mut rng).expect("No choices left");
+        let c = available_choices.choose(&mut rng);
+        let choice = match c {
+            None => continue,
+            Some(v) => v,
+        };
 
         map.insert(
             person.clone().as_str().to_string(),
@@ -56,24 +116,10 @@ fn calculate_wichtels(persons: &Persons) -> Result<HashMap<String, String>, Box<
     return Ok(map);
 }
 
-pub fn randomize(filename: String) -> Result<(), Box<dyn Error>> {
-    let path = Path::new(&filename);
-    let persons = read_users_from_file(path).expect("no persons in file");
-
-    let map: HashMap<String, String> =
-        calculate_wichtels(&persons).expect("Unable to calculate wichtels");
-
-    println!(
-        "Result: {}",
-        serde_json::to_string(&map).expect("Failed to serialize response")
-    );
-
-    return Ok(());
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+
     // helper for creating input data for tests
     impl Persons {
         fn new(persons: Vec<String>) -> Self {
