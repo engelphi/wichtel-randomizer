@@ -36,13 +36,12 @@ pub struct App {
 impl App {
     /// Construct the app with the cli arguments
     pub fn new(args: Args) -> Self {
-        return Self { args };
+        Self { args }
     }
 
     // Load persons from json file given by path
     fn read_users_from_file<P: AsRef<Path>>(&self, path: P) -> Result<Persons, Box<dyn Error>> {
-        let persons = serde_json::from_reader(BufReader::new(File::open(path)?))?;
-        return Ok(persons);
+        Ok(serde_json::from_reader(BufReader::new(File::open(path)?))?)
     }
 
     // Writes results to given file
@@ -52,16 +51,16 @@ impl App {
         map: &HashMap<String, String>,
     ) -> Result<(), Box<dyn Error>> {
         serde_json::to_writer_pretty(&File::create(path)?, &map)?;
-        return Ok(());
+        Ok(())
     }
 
     // Writes result to stdout
     fn print_results(&self, map: &HashMap<String, String>) -> Result<(), Box<dyn Error>> {
         println!(
-            "Result: {}",
+            "{}",
             serde_json::to_string_pretty(&map).expect("Failed to serialize response")
         );
-        return Ok(());
+        Ok(())
     }
 
     /// Entrypoint for the application logic
@@ -95,15 +94,14 @@ fn calculate_wichtels(persons: &Persons) -> Result<HashMap<String, String>, Box<
             .filter(|name| **name != *person)
             .collect::<Vec<&String>>();
 
-        let c = available_choices.choose(&mut rng);
-        let choice = match c {
+        let choice = match available_choices.choose(&mut rng) {
             None => continue,
             Some(v) => v,
         };
 
         map.insert(
             person.clone().as_str().to_string(),
-            choice.clone().as_str().to_string(),
+            (*choice).clone().as_str().to_string(),
         );
 
         let index = choices
@@ -113,7 +111,7 @@ fn calculate_wichtels(persons: &Persons) -> Result<HashMap<String, String>, Box<
 
         choices.remove(index);
     }
-    return Ok(map);
+    Ok(map)
 }
 
 #[cfg(test)]

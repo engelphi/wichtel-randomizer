@@ -4,5 +4,5 @@ use std::result::Result;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let app = wichtel_randomizer::App::new(wichtel_randomizer::Args::parse());
-    return app.randomize();
+    app.randomize()
 }
